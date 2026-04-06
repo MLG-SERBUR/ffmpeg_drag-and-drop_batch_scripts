@@ -1,5 +1,3 @@
-@echo off
-
 REM Generic compression script. Uses SVT-AV1 codec by default.
 
 if not defined VIDEO_ENCODER    set "VIDEO_ENCODER=libsvtav1 -crf 37 -preset 4"
@@ -37,13 +35,17 @@ if "%OUTPUT_DIR%"=="" (
 set "MOV_FLAGS="
 if /i "%FINAL_EXT%"==".mp4" set "MOV_FLAGS=-movflags +faststart"
 
-ffmpeg.exe -hide_banner -y -i "%~1" -map_metadata 0 ^
+ffmpeg.exe -hide_banner -y %INPUT_OPTIONS% -i "%~1" -map_metadata 0 ^
 -c:v %VIDEO_ENCODER% ^
 -c:a %AUDIO_ENCODER% ^
 %MOV_FLAGS% ^
 "%OUTPUT_PATH%%~n1%OUTPUT_SUFFIX%%FINAL_EXT%"
 
 if %errorlevel% neq 0 goto :error
+
+REM COPY MODIFIED DATE FROM SOURCE TO DESTINATION
+REM echo Copying timestamp...
+REM powershell -Command "(Get-Item '%OUTPUT_PATH%%~n1%OUTPUT_SUFFIX%%FINAL_EXT%').LastWriteTime = (Get-Item '%~1').LastWriteTime"
 
 echo [SUCCESS] "%~nx1" finished.
 
