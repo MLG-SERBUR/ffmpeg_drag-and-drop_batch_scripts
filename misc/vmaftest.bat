@@ -23,6 +23,13 @@ if "%AUDIO_BITRATE%"==""    set "AUDIO_BITRATE=96000"
 if "%OVERHEAD%"==""         set "OVERHEAD=10000"
 if "%AUDIO_ENCODER%"==""    set "AUDIO_ENCODER=aac"
 if "%OUTPUT_EXT%"==""       set "OUTPUT_EXT=.mp4"
+if "%VIDEO_TIMING_OPTIONS%"=="" set "VIDEO_TIMING_OPTIONS=-copyts -copytb 1 -enc_time_base demux -fps_mode passthrough"
+set "MOV_FLAGS="
+set "MP4_TIMING_OPTIONS="
+if /i "%OUTPUT_EXT%"==".mp4" (
+    set "MOV_FLAGS=-movflags +faststart"
+    set "MP4_TIMING_OPTIONS=-video_track_timescale 90000"
+)
 
 :loop
 if "%~1" == "" goto end
@@ -65,10 +72,10 @@ for %%A in (
         set /a "start_total=h*3600 + m*60 + s"
 
         REM --- FFmpeg Pass 1 (Temp logs created in Script Dir) ---
-        ffmpeg -hide_banner -y -i "%~1" -c:v !ENC! -preset !PRESET! !PARAMS! -b:v %video_bitrate% -pass 1 -passlogfile "%SCRIPT_DIR%ffmpeg2pass" -an -f null NUL
+        ffmpeg -hide_banner -y -i "%~1" -c:v !ENC! -preset !PRESET! !PARAMS! -b:v %video_bitrate% %VIDEO_TIMING_OPTIONS% -pass 1 -passlogfile "%SCRIPT_DIR%ffmpeg2pass" -an -f null NUL
         
         REM --- FFmpeg Pass 2 ---
-        ffmpeg -hide_banner -y -i "%~1" -c:v !ENC! -preset !PRESET! !PARAMS! -b:v %video_bitrate% -pass 2 -passlogfile "%SCRIPT_DIR%ffmpeg2pass" -movflags +faststart -c:a %AUDIO_ENCODER% -b:a %AUDIO_BITRATE% "!OUTFILE!"
+        ffmpeg -hide_banner -y -i "%~1" -c:v !ENC! -preset !PRESET! !PARAMS! -b:v %video_bitrate% %VIDEO_TIMING_OPTIONS% -pass 2 -passlogfile "%SCRIPT_DIR%ffmpeg2pass" %MP4_TIMING_OPTIONS% %MOV_FLAGS% -c:a %AUDIO_ENCODER% -b:a %AUDIO_BITRATE% "!OUTFILE!"
 
         REM --- END TIMER ---
         set "t=!TIME: =0!"

@@ -10,8 +10,13 @@ if "%VIDEO_ENCODER%"==""    set "VIDEO_ENCODER=libx265 -preset medium -tag:v hvc
 if "%AUDIO_ENCODER%"==""    set "AUDIO_ENCODER=aac"
 if "%OUTPUT_SUFFIX%"==""    set "OUTPUT_SUFFIX=_dumcord"
 if "%OUTPUT_EXT%"==""       set "OUTPUT_EXT=.mp4"
+if "%VIDEO_TIMING_OPTIONS%"=="" set "VIDEO_TIMING_OPTIONS=-copyts -copytb 1 -enc_time_base demux -fps_mode passthrough"
 set "MOV_FLAGS="
-if /i "%OUTPUT_EXT%"==".mp4" set "MOV_FLAGS=-movflags +faststart"
+set "MP4_TIMING_OPTIONS="
+if /i "%OUTPUT_EXT%"==".mp4" (
+    set "MOV_FLAGS=-movflags +faststart"
+    set "MP4_TIMING_OPTIONS=-video_track_timescale 90000"
+)
 REM set "VIDEO_FILTERS=-filter:v "crop=in_h:in_h:(in_w-out_w)/2:(in_h-out_h)/2:0""
 
 :loop
@@ -46,7 +51,7 @@ echo.
 
 echo --- Running Pass 1 ---
 ffmpeg -hide_banner -y -i "%~1" ^
--c:v %VIDEO_ENCODER% -b:v %video_bitrate% ^
+-c:v %VIDEO_ENCODER% -b:v %video_bitrate% %VIDEO_TIMING_OPTIONS% ^
 %VIDEO_FILTERS% %VIDEO_FILTERS_P1% ^
 -pass 1 -passlogfile "ffmpeg2pass" ^
 -an -f null NUL
@@ -56,9 +61,10 @@ if %errorlevel% neq 0 goto :error
 echo.
 echo --- Running Pass 2 ---
 ffmpeg -hide_banner -y -i "%~1" ^
--c:v %VIDEO_ENCODER% -b:v %video_bitrate% ^
+-c:v %VIDEO_ENCODER% -b:v %video_bitrate% %VIDEO_TIMING_OPTIONS% ^
 %VIDEO_FILTERS% %VIDEO_FILTERS_P2% ^
 -pass 2 -passlogfile "ffmpeg2pass" ^
+%MP4_TIMING_OPTIONS% ^
 %MOV_FLAGS% ^
 -c:a %AUDIO_ENCODER% -b:a %AUDIO_BITRATE% "%~n1%OUTPUT_SUFFIX%%OUTPUT_EXT%"
 

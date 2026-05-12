@@ -4,6 +4,7 @@ if not defined VIDEO_ENCODER    set "VIDEO_ENCODER=libsvtav1 -crf 37 -preset 4"
 if not defined AUDIO_ENCODER    set "AUDIO_ENCODER=copy"
 if not defined OUTPUT_SUFFIX    set "OUTPUT_SUFFIX=_av1"
 if not defined OUTPUT_DIR       set "OUTPUT_DIR="
+if not defined VIDEO_TIMING_OPTIONS set "VIDEO_TIMING_OPTIONS=-copyts -copytb 1 -enc_time_base demux -fps_mode passthrough"
 
 :loop
 REM Check if we have no more files to process
@@ -33,11 +34,16 @@ if "%OUTPUT_DIR%"=="" (
 )
 
 set "MOV_FLAGS="
-if /i "%FINAL_EXT%"==".mp4" set "MOV_FLAGS=-movflags +faststart"
+set "MP4_TIMING_OPTIONS="
+if /i "%FINAL_EXT%"==".mp4" (
+    set "MOV_FLAGS=-movflags +faststart"
+    set "MP4_TIMING_OPTIONS=-video_track_timescale 90000"
+)
 
 ffmpeg.exe -hide_banner -y %INPUT_OPTIONS% -i "%~1" -map_metadata 0 ^
--c:v %VIDEO_ENCODER% ^
+-c:v %VIDEO_ENCODER% %VIDEO_TIMING_OPTIONS% ^
 -c:a %AUDIO_ENCODER% ^
+%MP4_TIMING_OPTIONS% ^
 %MOV_FLAGS% ^
 "%OUTPUT_PATH%%~n1%OUTPUT_SUFFIX%%FINAL_EXT%"
 
