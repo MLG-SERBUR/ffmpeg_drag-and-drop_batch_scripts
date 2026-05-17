@@ -40,7 +40,7 @@ if /i "%FINAL_EXT%"==".mp4" (
     set "MP4_TIMING_OPTIONS=-video_track_timescale 90000"
 )
 
-ffmpegfdk7.exe -hide_banner -y %INPUT_OPTIONS% -i "%~1" -map_metadata 0 ^
+ffmpeg.exe -hide_banner -y %INPUT_OPTIONS% -i "%~1" -map_metadata 0 ^
 -c:v %VIDEO_ENCODER% %VIDEO_TIMING_OPTIONS% ^
 -c:a %AUDIO_ENCODER% ^
 %MP4_TIMING_OPTIONS% ^
