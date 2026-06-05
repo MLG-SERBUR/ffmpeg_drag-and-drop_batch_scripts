@@ -66,7 +66,7 @@ ffmpeg -hide_banner -y -i "%~1" ^
 -pass 2 -passlogfile "ffmpeg2pass" ^
 %MP4_TIMING_OPTIONS% ^
 %MOV_FLAGS% ^
--an -f null "%~n1%OUTPUT_SUFFIX%%OUTPUT_EXT%"
+-an "%~n1%OUTPUT_SUFFIX%%OUTPUT_EXT%"
 
 if %errorlevel% neq 0 goto :error
 
