@@ -12,7 +12,7 @@ if "%USE_SOURCE_FOLDER_OUTPUT%"=="" set "USE_SOURCE_FOLDER_OUTPUT=0"
 REM if "%VIDEO_ENCODER%"==""    set "VIDEO_ENCODER=libx264 -preset veryslow -x264-params open-gop=1"
 REM iOS requires -tag:v hvc1
 if "%VIDEO_ENCODER%"==""    set "VIDEO_ENCODER=libx265 -preset medium -tag:v hvc1 -x265-params open-gop=1"
-if "%AUDIO_ENCODER%"==""    set "AUDIO_ENCODER=aac -map 0:v -map 0:a:1"
+if "%AUDIO_ENCODER%"==""    set "AUDIO_ENCODER=aac -map 0:v -map 0:a:0"
 if "%OUTPUT_SUFFIX%"==""    set "OUTPUT_SUFFIX=_dumcord"
 if "%OUTPUT_EXT%"==""       set "OUTPUT_EXT=.mp4"
 if "%VIDEO_TIMING_OPTIONS%"=="" set "VIDEO_TIMING_OPTIONS=-copyts -copytb 1 -enc_time_base demux -fps_mode passthrough"
