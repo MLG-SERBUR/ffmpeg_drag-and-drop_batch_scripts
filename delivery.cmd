@@ -66,7 +66,7 @@ echo CRITICAL ERROR DETECTED!
 echo Encoding failed on file: "%~nx1"
 echo Process stopped.
 echo #########################################################
-pause
+if not defined DELIVERY_NO_PAUSE pause
 exit /b 1
 
 :end
@@ -74,5 +74,5 @@ echo.
 echo =========================================================
 echo All files processed successfully.
 echo =========================================================
-pause
+if not defined DELIVERY_NO_PAUSE pause
 exit /b 0
