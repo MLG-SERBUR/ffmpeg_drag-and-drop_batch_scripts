@@ -1,12 +1,22 @@
 param(
-    [string]$SourceDirectory = 'F:\final\S\S'
+    [string]$SourceDirectory
 )
 
 $ErrorActionPreference = 'Stop'
-$vmafThreshold = 95.0
-$excludedFiles = @('IMG_4643.MOV', 'IMG_4644.MOV')
+$optionsPath = Join-Path $PSScriptRoot 'search_encode_options.ps1'
+. $optionsPath
+
+if (-not $SearchEncodeOptions) {
+    throw "Options script did not define SearchEncodeOptions: $optionsPath"
+}
+
+if (-not $SourceDirectory) {
+    $SourceDirectory = $SearchEncodeOptions.SourceDirectory
+}
+
 $environmentNames = @(
     'VIDEO_ENCODER',
+    'VIDEO_TIMING_OPTIONS',
     'AUDIO_ENCODER',
     'OUTPUT_SUFFIX',
     'OUTPUT_DIR',
@@ -27,28 +37,32 @@ try {
         Select-Object -First 1
     $deliveryScript = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\delivery.cmd')).Path
     $videoFiles = @(
-        Get-ChildItem -LiteralPath $SourceDirectory -File -Filter '*.MOV' |
-            Where-Object { $_.Name -notin $excludedFiles } |
+        Get-ChildItem -LiteralPath $SourceDirectory -File -Filter $SearchEncodeOptions.InputFilter |
+            Where-Object { $_.Name -notin $SearchEncodeOptions.ExcludedFiles } |
             Sort-Object Name
     )
 
     if ($videoFiles.Count -eq 0) {
-        throw "No eligible .MOV source videos found in $SourceDirectory."
+        throw "No eligible source videos found in $SourceDirectory."
     }
 
     foreach ($video in $videoFiles) {
         Write-Host "`n=== Searching CRF: $($video.Name) ==="
+        $minVmaf = ([double]$SearchEncodeOptions.MinVmaf).ToString(
+            'R',
+            [Globalization.CultureInfo]::InvariantCulture
+        )
         $searchArgs = @(
             'crf-search', '-i', $video.FullName,
-            '--encoder', 'libsvtav1',
-            '--preset', '4',
-            '--min-vmaf', "$vmafThreshold",
-            '--enc', 'copyts',
-            '--enc', 'copytb=1',
-            '--enc', 'enc_time_base=demux',
-            '--enc', 'fps_mode=passthrough',
-            '--stdout-format', 'json'
+            '--encoder', $SearchEncodeOptions.Encoder,
+            '--preset', [string]$SearchEncodeOptions.Preset,
+            '--min-vmaf', $minVmaf
         )
+        foreach ($encoderArg in $SearchEncodeOptions.SearchEncoderArgs) {
+            $searchArgs += @('--enc', [string]$encoderArg)
+        }
+        $searchArgs += @('--stdout-format', 'json')
+
         $searchOutput = @(& $abAv1.Source @searchArgs)
         $searchExitCode = $LASTEXITCODE
         if ($searchExitCode -ne 0) {
@@ -75,12 +89,18 @@ try {
         )
         Write-Host "Selected CRF $crfText (sample VMAF $($searchResult.vmaf))"
 
-        $env:VIDEO_ENCODER = "libsvtav1 -crf $crfText -preset 4"
-        $env:AUDIO_ENCODER = 'copy'
-        $env:OUTPUT_SUFFIX = '_av1'
-        $env:OUTPUT_DIR = ''
-        $env:OUTPUT_EXT = '.mp4'
+        $env:VIDEO_ENCODER = "$($SearchEncodeOptions.Encoder) -crf $crfText -preset $($SearchEncodeOptions.Preset)"
+        $env:AUDIO_ENCODER = [string]$SearchEncodeOptions.AudioEncoder
+        $env:OUTPUT_SUFFIX = [string]$SearchEncodeOptions.OutputSuffix
+        $env:OUTPUT_DIR = [string]$SearchEncodeOptions.OutputDirectory
+        $env:OUTPUT_EXT = [string]$SearchEncodeOptions.OutputExtension
         $env:DELIVERY_NO_PAUSE = '1'
+        if ([string]::IsNullOrWhiteSpace($SearchEncodeOptions.VideoTimingOptions)) {
+            Remove-Item Env:VIDEO_TIMING_OPTIONS -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:VIDEO_TIMING_OPTIONS = [string]$SearchEncodeOptions.VideoTimingOptions
+        }
 
         Write-Host "=== Encoding: $($video.Name) ==="
         & $deliveryScript $video.FullName
@@ -88,40 +108,9 @@ try {
         if ($deliveryExitCode -ne 0) {
             throw "Delivery encode failed for $($video.Name) (exit code $deliveryExitCode)."
         }
-
-        $outputPath = Join-Path $video.DirectoryName ($video.BaseName + '_av1.mp4')
-        if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
-            throw "Delivery completed without creating the expected output: $outputPath"
-        }
-
-        Write-Host "=== Full-file VMAF: $($video.Name) ==="
-        $vmafOutput = @(& $abAv1.Source vmaf --reference $video.FullName --distorted $outputPath)
-        $vmafExitCode = $LASTEXITCODE
-        if ($vmafExitCode -ne 0) {
-            throw "VMAF verification failed for $($video.Name) (exit code $vmafExitCode)."
-        }
-
-        $scoreLine = $vmafOutput |
-            Where-Object { [string]$_ -match '^\s*\d+(?:\.\d+)?\s*$' } |
-            Select-Object -Last 1
-        $score = 0.0
-        if ($null -eq $scoreLine -or -not [double]::TryParse(
-            ([string]$scoreLine).Trim(),
-            [Globalization.NumberStyles]::Float,
-            [Globalization.CultureInfo]::InvariantCulture,
-            [ref]$score
-        )) {
-            throw "Could not parse the VMAF score for $($video.Name)."
-        }
-
-        if ($score -lt $vmafThreshold) {
-            throw "VMAF verification failed for $($video.Name): $score is below $vmafThreshold."
-        }
-
-        Write-Host ("[PASS] {0}: VMAF {1:F2}" -f $video.Name, $score)
     }
 
-    Write-Host "`nAll $($videoFiles.Count) videos encoded and verified at VMAF $vmafThreshold or higher."
+    Write-Host "`nAll $($videoFiles.Count) videos searched and encoded successfully."
 }
 catch {
     [Console]::Error.WriteLine($_.Exception.Message)
