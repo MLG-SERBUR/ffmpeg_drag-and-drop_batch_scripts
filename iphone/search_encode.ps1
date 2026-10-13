@@ -1,6 +1,22 @@
 param(
-    [string]$SourceDirectory
+    [Parameter(Position = 0)]
+    [ValidateNotNullOrEmpty()]
+    [string]$SourceDirectory,
+
+    [string]$OutputDirectory,
+
+    [string]$OutputSuffix = ''
 )
+
+if ([string]::IsNullOrWhiteSpace($SourceDirectory)) {
+    Write-Host 'Usage: .\search_encode.ps1 <SourceDirectory> [-OutputDirectory <Directory>] [-OutputSuffix <Suffix>]'
+    Write-Host ''
+    Write-Host 'Arguments:'
+    Write-Host '  <SourceDirectory>            Required. Directory containing the source videos.'
+    Write-Host '  -OutputDirectory <Directory>  Optional. Defaults to an "encoded" subdirectory in the source directory.'
+    Write-Host '  -OutputSuffix <Suffix>        Optional. Defaults to no suffix.'
+    exit 2
+}
 
 $ErrorActionPreference = 'Stop'
 $optionsPath = Join-Path $PSScriptRoot 'search_encode_options.ps1'
@@ -10,10 +26,6 @@ if (-not $SearchEncodeOptions) {
     throw "Options script did not define SearchEncodeOptions: $optionsPath"
 }
 
-if (-not $SourceDirectory) {
-    $SourceDirectory = $SearchEncodeOptions.SourceDirectory
-}
-
 $environmentNames = @(
     'VIDEO_ENCODER',
     'VIDEO_TIMING_OPTIONS',
@@ -21,7 +33,8 @@ $environmentNames = @(
     'OUTPUT_SUFFIX',
     'OUTPUT_DIR',
     'OUTPUT_EXT',
-    'DELIVERY_NO_PAUSE'
+    'DELIVERY_NO_PAUSE',
+    'DELIVERY_ALLOW_EMPTY_SUFFIX'
 )
 $originalEnvironment = @{}
 foreach ($name in $environmentNames) {
@@ -31,6 +44,18 @@ foreach ($name in $environmentNames) {
 try {
     if (-not (Test-Path -LiteralPath $SourceDirectory -PathType Container)) {
         throw "Source directory not found: $SourceDirectory"
+    }
+    $SourceDirectory = (Resolve-Path -LiteralPath $SourceDirectory).Path
+
+    if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+        $OutputDirectory = Join-Path $SourceDirectory 'encoded'
+    }
+    if (-not (Test-Path -LiteralPath $OutputDirectory -PathType Container)) {
+        New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+    }
+    $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
+    if (-not $OutputDirectory.EndsWith([IO.Path]::DirectorySeparatorChar)) {
+        $OutputDirectory += [IO.Path]::DirectorySeparatorChar
     }
 
     $abAv1 = Get-Command ab-av1 -CommandType Application -ErrorAction Stop |
@@ -91,10 +116,11 @@ try {
 
         $env:VIDEO_ENCODER = "$($SearchEncodeOptions.Encoder) -crf $crfText -preset $($SearchEncodeOptions.Preset)"
         $env:AUDIO_ENCODER = [string]$SearchEncodeOptions.AudioEncoder
-        $env:OUTPUT_SUFFIX = [string]$SearchEncodeOptions.OutputSuffix
-        $env:OUTPUT_DIR = [string]$SearchEncodeOptions.OutputDirectory
+        $env:OUTPUT_SUFFIX = $OutputSuffix
+        $env:OUTPUT_DIR = $OutputDirectory
         $env:OUTPUT_EXT = [string]$SearchEncodeOptions.OutputExtension
         $env:DELIVERY_NO_PAUSE = '1'
+        $env:DELIVERY_ALLOW_EMPTY_SUFFIX = '1'
         if ([string]::IsNullOrWhiteSpace($SearchEncodeOptions.VideoTimingOptions)) {
             Remove-Item Env:VIDEO_TIMING_OPTIONS -ErrorAction SilentlyContinue
         }
@@ -110,7 +136,7 @@ try {
         }
     }
 
-    Write-Host "`nAll $($videoFiles.Count) videos searched and encoded successfully."
+    Write-Host "`nAll $($videoFiles.Count) videos searched and encoded successfully in $OutputDirectory"
 }
 catch {
     [Console]::Error.WriteLine($_.Exception.Message)

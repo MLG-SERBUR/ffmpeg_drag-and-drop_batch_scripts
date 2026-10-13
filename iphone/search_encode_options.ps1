@@ -1,5 +1,4 @@
 $SearchEncodeOptions = [ordered]@{
-    SourceDirectory      = 'F:\final\S\S'
     InputFilter          = '*.MOV'
     ExcludedFiles        = @('IMG_4643.MOV', 'IMG_4644.MOV')
     Encoder              = 'libsvtav1'
@@ -12,8 +11,6 @@ $SearchEncodeOptions = [ordered]@{
         'fps_mode=passthrough'
     )
     AudioEncoder         = 'copy'
-    OutputSuffix         = '_av1'
-    OutputDirectory      = ''
     OutputExtension      = '.mp4'
     VideoTimingOptions   = ''
 }

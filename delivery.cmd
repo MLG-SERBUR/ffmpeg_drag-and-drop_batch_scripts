@@ -2,7 +2,7 @@ REM Generic compression script. Uses SVT-AV1 codec by default.
 
 if not defined VIDEO_ENCODER    set "VIDEO_ENCODER=libsvtav1 -crf 37 -preset 4"
 if not defined AUDIO_ENCODER    set "AUDIO_ENCODER=copy"
-if not defined OUTPUT_SUFFIX    set "OUTPUT_SUFFIX=_av1"
+if not defined OUTPUT_SUFFIX if not defined DELIVERY_ALLOW_EMPTY_SUFFIX set "OUTPUT_SUFFIX=_av1"
 if not defined OUTPUT_DIR       set "OUTPUT_DIR="
 if not defined VIDEO_TIMING_OPTIONS set "VIDEO_TIMING_OPTIONS=-copyts -copytb 1 -enc_time_base demux -fps_mode passthrough"
 
