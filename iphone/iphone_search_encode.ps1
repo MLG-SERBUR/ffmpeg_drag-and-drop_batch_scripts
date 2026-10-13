@@ -8,8 +8,25 @@ param(
     [string]$OutputSuffix = ''
 )
 
+$SearchEncodeOptions = [ordered]@{
+    InputFilter       = '*.MOV'
+    ExcludedFiles     = @('IMG_4643.MOV', 'IMG_4644.MOV')
+    Encoder           = 'libsvtav1'
+    Preset            = 4
+    MinVmaf           = 95
+    SearchEncoderArgs = @(
+        'copyts',
+        'copytb=1',
+        'enc_time_base=demux',
+        'fps_mode=passthrough'
+    )
+    AudioEncoder      = 'copy'
+    OutputExtension  = '.mp4'
+    VideoTimingOptions = ''
+}
+
 if ([string]::IsNullOrWhiteSpace($SourceDirectory)) {
-    Write-Host 'Usage: .\search_encode.ps1 <SourceDirectory> [-OutputDirectory <Directory>] [-OutputSuffix <Suffix>]'
+    Write-Host 'Usage: .\iphone_search_encode.ps1 <SourceDirectory> [-OutputDirectory <Directory>] [-OutputSuffix <Suffix>]'
     Write-Host ''
     Write-Host 'Arguments:'
     Write-Host '  <SourceDirectory>            Required. Directory containing the source videos.'
@@ -19,12 +36,6 @@ if ([string]::IsNullOrWhiteSpace($SourceDirectory)) {
 }
 
 $ErrorActionPreference = 'Stop'
-$optionsPath = Join-Path $PSScriptRoot 'search_encode_options.ps1'
-. $optionsPath
-
-if (-not $SearchEncodeOptions) {
-    throw "Options script did not define SearchEncodeOptions: $optionsPath"
-}
 
 $environmentNames = @(
     'VIDEO_ENCODER',
